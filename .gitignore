@@ -37,6 +37,9 @@ objfre*/
 *.err
 *.wrn
 *.tlog
+*.dll
+*.lib
+*.exp
 
 ## TODO: If you have NuGet Package Restore enabled, uncomment this
 #packages/
