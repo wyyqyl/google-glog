@@ -52,6 +52,9 @@
 #endif
 #include <vector>
 
+// support WCHAR
+#include "glog/wchar_logging.h"
+
 // Annoying stuff for windows -- makes sure clients can import these functions
 #ifndef GOOGLE_GLOG_DLL_DECL
 # if defined(_WIN32) && !defined(__CYGWIN__)
@@ -1129,14 +1132,11 @@ public:
   // 2005 if you are deriving from a type in the Standard C++ Library"
   // http://msdn.microsoft.com/en-us/library/3tdb471s(VS.80).aspx
   // Let's just ignore the warning.
-#ifdef _MSC_VER
-# pragma warning(disable: 4275)
-#endif
+GLOG_MSVC_PUSH_DISABLE_WARNING(4275)
   class GOOGLE_GLOG_DLL_DECL LogStream : public std::ostream {
-#ifdef _MSC_VER
-# pragma warning(default: 4275)
-#endif
+GLOG_MSVC_POP_WARNING()
   public:
+GLOG_MSVC_PUSH_DISABLE_WARNING(4355)
     LogStream(char *buf, int len, int ctr)
         : std::ostream(NULL),
           streambuf_(buf, len),
@@ -1144,7 +1144,7 @@ public:
           self_(this) {
       rdbuf(&streambuf_);
     }
-
+ GLOG_MSVC_POP_WARNING()
     int ctr() const { return ctr_; }
     void set_ctr(int ctr) { ctr_ = ctr; }
     LogStream* self() const { return self_; }
@@ -1155,7 +1155,9 @@ public:
     char* str() const { return pbase(); }
 
   private:
+GLOG_MSVC_PUSH_DISABLE_WARNING(4251)
     base_logging::LogStreamBuf streambuf_;
+GLOG_MSVC_POP_WARNING()
     int ctr_;  // Counter hack (for the LOG_EVERY_X() macro)
     LogStream *self_;  // Consistency check hack
   };

@@ -787,7 +787,7 @@ LogFileObject::LogFileObject(LogSeverity severity,
   : base_filename_selected_(base_filename != NULL),
     base_filename_((base_filename != NULL) ? base_filename : ""),
     symlink_basename_(glog_internal_namespace_::ProgramInvocationShortName()),
-    filename_extension_(),
+    filename_extension_(".log"),
     file_(NULL),
     severity_(severity),
     bytes_since_flush_(0),
@@ -855,8 +855,7 @@ void LogFileObject::FlushUnlocked(){
 }
 
 bool LogFileObject::CreateLogfile(const string& time_pid_string) {
-  string string_filename = base_filename_+filename_extension_+
-                           time_pid_string;
+  string string_filename = base_filename_+time_pid_string+filename_extension_;
   const char* filename = string_filename.c_str();
   int fd = open(filename, O_WRONLY | O_CREAT | O_EXCL, 0664);
   if (fd == -1) return false;
@@ -976,19 +975,19 @@ void LogFileObject::Write(bool force_flush,
       // "/tmp", and "."
       string stripped_filename(
           glog_internal_namespace_::ProgramInvocationShortName());
-      string hostname;
-      GetHostName(&hostname);
+      //string hostname;
+      //GetHostName(&hostname);
 
-      string uidname = MyUserName();
+      //string uidname = MyUserName();
       // We should not call CHECK() here because this function can be
       // called after holding on to log_mutex. We don't want to
       // attempt to hold on to the same mutex, and get into a
       // deadlock. Simply use a name like invalid-user.
-      if (uidname.empty()) uidname = "invalid-user";
+      //if (uidname.empty()) uidname = "invalid-user";
 
-      stripped_filename = stripped_filename+'.'+hostname+'.'
-                          +uidname+".log."
-                          +LogSeverityNames[severity_]+'.';
+      //stripped_filename = stripped_filename+'.'+hostname+'.'
+      //                    +uidname+'.'+LogSeverityNames[severity_]+'.';
+      stripped_filename = stripped_filename+'.'+LogSeverityNames[severity_]+'.';
       // We're going to (potentially) try to put logs in several different dirs
       const vector<string> & log_dirs = GetLoggingDirectories();
 
