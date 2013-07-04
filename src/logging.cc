@@ -398,9 +398,9 @@ class LogFileObject : public base::Logger {
   int64 next_flush_time_;         // cycle count at which to flush log
 
   // Actually create a logfile using the value of base_filename_ and the
-  // supplied argument time_pid_string
+  // supplied argument date_string
   // REQUIRES: lock_ is held
-  bool CreateLogfile(const string& time_pid_string);
+  bool CreateLogfile(const string& date_string);
 };
 
 }  // namespace
@@ -854,10 +854,10 @@ void LogFileObject::FlushUnlocked(){
   next_flush_time_ = CycleClock_Now() + UsecToCycles(next);
 }
 
-bool LogFileObject::CreateLogfile(const string& time_pid_string) {
-  string string_filename = base_filename_+time_pid_string+filename_extension_;
+bool LogFileObject::CreateLogfile(const string& date_string) {
+  string string_filename = base_filename_ + date_string + filename_extension_;
   const char* filename = string_filename.c_str();
-  int fd = open(filename, O_WRONLY | O_CREAT | O_EXCL, 0664);
+  int fd = open(filename, O_WRONLY | O_CREAT | O_APPEND, 0664);
   if (fd == -1) return false;
 #ifdef HAVE_FCNTL
   // Mark the file close-on-exec. We don't really care if this fails
@@ -940,25 +940,19 @@ void LogFileObject::Write(bool force_flush,
     struct ::tm tm_time;
     localtime_r(&timestamp, &tm_time);
 
-    // The logfile's filename will have the date/time & pid in it
-    ostringstream time_pid_stream;
-    time_pid_stream.fill('0');
-    time_pid_stream << 1900+tm_time.tm_year
+    // The logfile's filename will have the date in it
+    ostringstream date_stream;
+    date_stream.fill('0');
+    date_stream << 1900+tm_time.tm_year
                     << setw(2) << 1+tm_time.tm_mon
-                    << setw(2) << tm_time.tm_mday
-                    << '-'
-                    << setw(2) << tm_time.tm_hour
-                    << setw(2) << tm_time.tm_min
-                    << setw(2) << tm_time.tm_sec
-                    << '.'
-                    << GetMainThreadPid();
-    const string& time_pid_string = time_pid_stream.str();
+                    << setw(2) << tm_time.tm_mday;
+    const string& date_string = date_stream.str();
 
     if (base_filename_selected_) {
-      if (!CreateLogfile(time_pid_string)) {
+      if (!CreateLogfile(date_string)) {
         perror("Could not create log file");
         fprintf(stderr, "COULD NOT CREATE LOGFILE '%s'!\n",
-                time_pid_string.c_str());
+                date_string.c_str());
         return;
       }
     } else {
@@ -998,7 +992,7 @@ void LogFileObject::Write(bool force_flush,
            dir != log_dirs.end();
            ++dir) {
         base_filename_ = *dir + "/" + stripped_filename;
-        if ( CreateLogfile(time_pid_string) ) {
+        if ( CreateLogfile(date_string) ) {
           success = true;
           break;
         }
@@ -1007,7 +1001,7 @@ void LogFileObject::Write(bool force_flush,
       if ( success == false ) {
         perror("Could not create logging file");
         fprintf(stderr, "COULD NOT CREATE A LOGGINGFILE %s!",
-                time_pid_string.c_str());
+                date_string.c_str());
         return;
       }
     }
@@ -1015,7 +1009,7 @@ void LogFileObject::Write(bool force_flush,
     // Write a header message into the log file
     ostringstream file_header_stream;
     file_header_stream.fill('0');
-    file_header_stream << "Log file created at: "
+    file_header_stream << "\nLog file created at: "
                        << 1900+tm_time.tm_year << '/'
                        << setw(2) << 1+tm_time.tm_mon << '/'
                        << setw(2) << tm_time.tm_mday
@@ -1025,6 +1019,7 @@ void LogFileObject::Write(bool force_flush,
                        << setw(2) << tm_time.tm_sec << '\n'
                        << "Running on machine: "
                        << LogDestination::hostname() << '\n'
+                       << "PID: " << GetMainThreadPid() << '\n'
                        << "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu "
                        << "threadid file:line] msg" << '\n';
     const string& file_header_string = file_header_stream.str();
