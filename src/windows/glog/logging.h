@@ -323,6 +323,12 @@ typedef unsigned __int64 uint64;
   using fLS::FLAGS_##name
 #endif
 
+// Set whether log messages go to debugger instead of logfiles
+DECLARE_bool(logtodbg);
+
+// Set whether log messages go to debugger in addition to logfiles.
+DECLARE_bool(alsologtodbg);
+
 // Set whether log messages go to stderr instead of logfiles
 DECLARE_bool(logtostderr);
 

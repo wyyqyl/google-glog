@@ -98,6 +98,10 @@ static bool BoolFromEnv(const char *varname, bool defval) {
   return memchr("tTyY1\0", valstr[0], 6) != NULL;
 }
 
+GLOG_DEFINE_bool(logtodbg, BoolFromEnv("GOOGLE_LOGTODBG", false),
+    "log messages go to debugger instead of logfiles");
+GLOG_DEFINE_bool(alsologtodbg, BoolFromEnv("GOOGLE_ALSOLOGTODBG", false),
+    "log messages go to debugger in addition to logfiles");
 GLOG_DEFINE_bool(logtostderr, BoolFromEnv("GOOGLE_LOGTOSTDERR", false),
                  "log messages go to stderr instead of logfiles");
 GLOG_DEFINE_bool(alsologtostderr, BoolFromEnv("GOOGLE_ALSOLOGTOSTDERR", false),
@@ -443,6 +447,11 @@ class LogDestination {
   LogDestination(LogSeverity severity, const char* base_filename);
   ~LogDestination() { }
 
+  // Take a log message of a particular severity and log it to debugger
+  // iff it's of a high enough severity to deserve it.
+  static void MaybeLogToDbg(LogSeverity severity, const char* message,
+                   size_t len);
+
   // Take a log message of a particular severity and log it to stderr
   // iff it's of a high enough severity to deserve it.
   static void MaybeLogToStderr(LogSeverity severity, const char* message,
@@ -676,13 +685,23 @@ inline void LogDestination::MaybeLogToStderr(LogSeverity severity,
 					     const char* message, size_t len) {
   if ((severity >= FLAGS_stderrthreshold) || FLAGS_alsologtostderr) {
     ColoredWriteToStderr(severity, message, len);
-#ifdef OS_WINDOWS
-    // On Windows, also output to the debugger
-    ::OutputDebugStringA(string(message,len).c_str());
-#endif
   }
 }
 
+static void WriteToDbg(const char *message, size_t size) {
+#ifdef OS_WINDOWS
+  ::OutputDebugStringA(string(message, size).c_str());
+#endif // OS_WINDOWS
+}
+
+inline void LogDestination::MaybeLogToDbg(LogSeverity severity,
+                         const char* message, size_t len) {
+#ifdef OS_WINDOWS
+  if (FLAGS_alsologtodbg) {
+    WriteToDbg(message, len);
+  }
+#endif // OS_WINDOWS
+}
 
 inline void LogDestination::MaybeLogToEmail(LogSeverity severity,
 					    const char* message, size_t len) {
@@ -1333,7 +1352,8 @@ void LogMessage::SendToLog() EXCLUSIVE_LOCKS_REQUIRED(log_mutex) {
 
   if (!already_warned_before_initgoogle && !IsGoogleLoggingInitialized()) {
     const char w[] = "WARNING: Logging before InitGoogleLogging() is "
-                     "written to STDERR\n";
+                     "written to DEBUGGER or STDERR\n";
+    WriteToDbg(w, strlen(w));
     WriteToStderr(w, strlen(w));
     already_warned_before_initgoogle = true;
   }
@@ -1341,36 +1361,34 @@ void LogMessage::SendToLog() EXCLUSIVE_LOCKS_REQUIRED(log_mutex) {
   // global flag: never log to file if set.  Also -- don't log to a
   // file if we haven't parsed the command line flags to get the
   // program name.
+#ifdef OS_WINDOWS
+  if (FLAGS_logtodbg || !IsGoogleLoggingInitialized()) {
+    WriteToDbg(data_->message_text_, data_->num_chars_to_log_);
+  } else
+#endif //OS_WINDOWS
   if (FLAGS_logtostderr || !IsGoogleLoggingInitialized()) {
     ColoredWriteToStderr(data_->severity_,
                          data_->message_text_, data_->num_chars_to_log_);
-
-    // this could be protected by a flag if necessary.
-    LogDestination::LogToSinks(data_->severity_,
-                               data_->fullname_, data_->basename_,
-                               data_->line_, &data_->tm_time_,
-                               data_->message_text_ + data_->num_prefix_chars_,
-                               (data_->num_chars_to_log_ -
-                                data_->num_prefix_chars_ - 1));
   } else {
-
     // log this message to all log files of severity <= severity_
     LogDestination::LogToAllLogfiles(data_->severity_, data_->timestamp_,
                                      data_->message_text_,
                                      data_->num_chars_to_log_);
-
+    LogDestination::MaybeLogToDbg(data_->severity_, data_->message_text_,
+                                  data_->num_chars_to_log_);
     LogDestination::MaybeLogToStderr(data_->severity_, data_->message_text_,
                                      data_->num_chars_to_log_);
     LogDestination::MaybeLogToEmail(data_->severity_, data_->message_text_,
                                     data_->num_chars_to_log_);
-    LogDestination::LogToSinks(data_->severity_,
-                               data_->fullname_, data_->basename_,
-                               data_->line_, &data_->tm_time_,
-                               data_->message_text_ + data_->num_prefix_chars_,
-                               (data_->num_chars_to_log_
-                                - data_->num_prefix_chars_ - 1));
-    // NOTE: -1 removes trailing \n
   }
+  // this could be protected by a flag if necessary.
+  LogDestination::LogToSinks(data_->severity_,
+      data_->fullname_, data_->basename_,
+      data_->line_, &data_->tm_time_,
+      data_->message_text_ + data_->num_prefix_chars_,
+      (data_->num_chars_to_log_ -
+      data_->num_prefix_chars_ - 1));
+  // NOTE: -1 removes trailing \n
 
   // If we log a FATAL message, flush all the log destinations, then toss
   // a signal for others to catch. We leave the logs in a state that
