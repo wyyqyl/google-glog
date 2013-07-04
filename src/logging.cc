@@ -991,6 +991,12 @@ void LogFileObject::Write(bool force_flush,
       for (vector<string>::const_iterator dir = log_dirs.begin();
            dir != log_dirs.end();
            ++dir) {
+        // Try to create directory first
+#ifndef OS_WINDOWS
+        mkdir(dir->c_str(), 0700);
+#else
+        CreateDirectoryA(dir->c_str(), NULL);
+#endif
         base_filename_ = *dir + "/" + stripped_filename;
         if ( CreateLogfile(date_string) ) {
           success = true;
