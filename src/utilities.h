@@ -162,6 +162,7 @@ int32 GetMainThreadPid();
 bool PidHasChanged();
 
 pid_t GetTID();
+const std::string &OSVersion();
 
 const std::string& MyUserName();
 
