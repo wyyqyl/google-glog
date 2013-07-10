@@ -174,6 +174,13 @@ static void BM_vlog(int n) {
 BENCHMARK(BM_vlog);
 
 int main(int argc, char **argv) {
+    FLAGS_log_dir = "Log";
+    google::InitGoogleLogging(argv[0]);
+    LOG(ERROR) << "Test" << L"KDJFK" << '\n';
+    LOG(ERROR) << "Test" << L"KDJFK" << '\n';
+    LOG(ERROR) << "Test" << L"KDJFK" << '\n';
+    LOG(ERROR) << "Test" << L"KDJFK" << '\n';
+    LOG(ERROR) << "Test" << L"KDJFK" << '\n';
   FLAGS_colorlogtostderr = false;
 #ifdef HAVE_LIB_GFLAGS
   ParseCommandLineFlags(&argc, &argv, true);

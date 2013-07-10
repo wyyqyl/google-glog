@@ -1044,6 +1044,8 @@ void LogFileObject::Write(bool force_flush,
                        << setw(2) << tm_time.tm_sec << '\n'
                        << "Running on machine: "
                        << LogDestination::hostname() << '\n'
+                       << "Operating System: "
+                       << OSVersion() << '\n'
                        << "PID: " << GetMainThreadPid() << '\n'
                        << "Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu "
                        << "threadid file:line] msg" << '\n';
